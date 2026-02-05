@@ -2,17 +2,26 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"test-server/database"
 	"test-server/models"
 	"test-server/repository"
 	"test-server/routes"
+
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -52,7 +61,18 @@ func getEnvOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
+func keployAgentBaseURL() string {
+	if uri := strings.TrimRight(os.Getenv("KEPLOY_AGENT_URI"), "/"); uri != "" {
+		return uri
+	}
+	if port := os.Getenv("KEPLOY_AGENT_PORT"); port != "" {
+		return "http://localhost:" + port + "/agent"
+	}
+	return "http://localhost:6789/agent"
+}
+
 func TestIntegrationCreateTodo(t *testing.T) {
+	startKeploySession(t, "TestIntegrationCreateTodo")
 	setupTestDB(t)
 	defer teardownTestDB(t)
 
@@ -83,6 +103,7 @@ func TestIntegrationCreateTodo(t *testing.T) {
 }
 
 func TestIntegrationGetAllTodos(t *testing.T) {
+	startKeploySession(t, "TestIntegrationGetAllTodos")
 	setupTestDB(t)
 	defer teardownTestDB(t)
 
@@ -107,6 +128,7 @@ func TestIntegrationGetAllTodos(t *testing.T) {
 }
 
 func TestIntegrationGetTodoByID(t *testing.T) {
+	startKeploySession(t, "TestIntegrationGetTodoByID")
 	setupTestDB(t)
 	defer teardownTestDB(t)
 
@@ -133,6 +155,82 @@ func TestIntegrationGetTodoByID(t *testing.T) {
 	assert.Equal(t, created.Title, todo.Title)
 }
 
+func TestExternalHTTPSCall(t *testing.T) {
+	// startKeploySession(t, "TestExternalHTTPSCall")
+
+	url := getEnvOrDefault("EXTERNAL_API_URL", "https://postman-echo.com/get?foo=bar")
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+	req.Header.Set("User-Agent", "keploy-test-server/1.0")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("Failed to call external API: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		t.Fatalf("Unexpected status code: %d", resp.StatusCode)
+	}
+
+	if _, err := io.ReadAll(resp.Body); err != nil {
+		t.Fatalf("Failed to read response body: %v", err)
+	}
+}
+
+func TestMySQLHealth(t *testing.T) {
+	// startKeploySession(t, "TestMySQLHealth")
+
+	dbConfig := database.Config{
+		Host:     getEnvOrDefault("DB_HOST", "localhost"),
+		Port:     getEnvOrDefault("DB_PORT", "3306"),
+		User:     getEnvOrDefault("DB_USER", "root"),
+		Password: getEnvOrDefault("DB_PASSWORD", "password"),
+		DBName:   getEnvOrDefault("DB_NAME", "todo_test_db"),
+	}
+
+	if err := database.InitDB(dbConfig); err != nil {
+		t.Fatalf("Failed to initialize database: %v", err)
+	}
+	defer database.CloseDB()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := database.DB.PingContext(ctx); err != nil {
+		t.Fatalf("Failed to ping MySQL: %v", err)
+	}
+}
+
+func TestMongoHealth(t *testing.T) {
+	// startKeploySession(t, "TestMongoHealth")
+
+	uri := getEnvOrDefault("MONGO_URI", "")
+	if uri == "" {
+		host := getEnvOrDefault("MONGO_HOST", "localhost")
+		port := getEnvOrDefault("MONGO_PORT", "27017")
+		uri = "mongodb://" + net.JoinHostPort(host, port)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
+	if err != nil {
+		t.Fatalf("Failed to create MongoDB client: %v", err)
+	}
+	defer func() {
+		_ = client.Disconnect(context.Background())
+	}()
+
+	if err := client.Ping(ctx, readpref.Primary()); err != nil {
+		t.Fatalf("Failed to ping MongoDB: %v", err)
+	}
+}
 // func TestIntegrationUpdateTodo(t *testing.T) {
 // 	setupTestDB(t)
 // 	defer teardownTestDB(t)
@@ -252,3 +350,22 @@ func TestIntegrationGetTodoByID(t *testing.T) {
 // 	// Wait a bit for the delete to propagate
 // 	time.Sleep(100 * time.Millisecond)
 // }
+
+func startKeploySession(t *testing.T, sessionName string) {
+	client := &http.Client{}
+	url := keployAgentBaseURL() + "/hooks/start-session"
+	payload := map[string]string{"name": sessionName}
+	jsonPayload, _ := json.Marshal(payload)
+	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		// Just log, don't fail if agent is not running (e.g. running tests without keploy)
+		t.Logf("Failed to call agent start-session: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Logf("Agent returned non-200: %d", resp.StatusCode)
+	}
+}
