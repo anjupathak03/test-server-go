@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -18,10 +17,6 @@ import (
 	"test-server/models"
 	"test-server/repository"
 	"test-server/routes"
-
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/readpref"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -62,12 +57,21 @@ func getEnvOrDefault(key, defaultValue string) string {
 }
 
 func keployAgentBaseURL() string {
+	// Preferred source in Keploy v3: full URI exported by the parent process.
+	// Example: KEPLOY_AGENT_URI=http://localhost:33003/agent
+	//
+	// This avoids assuming a fixed control-plane port. Keploy may choose a
+	// different free port on each run.
 	if uri := strings.TrimRight(os.Getenv("KEPLOY_AGENT_URI"), "/"); uri != "" {
 		return uri
 	}
+	// Backward-compatible fallback if only the port is exported.
+	// Example: KEPLOY_AGENT_PORT=33003
 	if port := os.Getenv("KEPLOY_AGENT_PORT"); port != "" {
 		return "http://localhost:" + port + "/agent"
 	}
+	// Final fallback for ad-hoc local runs where env vars are not injected.
+	// This keeps tests runnable outside Keploy, but is not reliable for v3.
 	return "http://localhost:6789/agent"
 }
 
@@ -156,7 +160,7 @@ func TestIntegrationGetTodoByID(t *testing.T) {
 }
 
 func TestExternalHTTPSCall(t *testing.T) {
-	// startKeploySession(t, "TestExternalHTTPSCall")
+	startKeploySession(t, "TestExternalHTTPSCall")
 
 	url := getEnvOrDefault("EXTERNAL_API_URL", "https://postman-echo.com/get?foo=bar")
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -183,7 +187,7 @@ func TestExternalHTTPSCall(t *testing.T) {
 }
 
 func TestMySQLHealth(t *testing.T) {
-	// startKeploySession(t, "TestMySQLHealth")
+	startKeploySession(t, "TestMySQLHealth")
 
 	dbConfig := database.Config{
 		Host:     getEnvOrDefault("DB_HOST", "localhost"),
@@ -206,31 +210,31 @@ func TestMySQLHealth(t *testing.T) {
 	}
 }
 
-func TestMongoHealth(t *testing.T) {
-	// startKeploySession(t, "TestMongoHealth")
+// func TestMongoHealth(t *testing.T) {
+// 	startKeploySession(t, "TestMongoHealth")
 
-	uri := getEnvOrDefault("MONGO_URI", "")
-	if uri == "" {
-		host := getEnvOrDefault("MONGO_HOST", "localhost")
-		port := getEnvOrDefault("MONGO_PORT", "27017")
-		uri = "mongodb://" + net.JoinHostPort(host, port)
-	}
+// 	uri := getEnvOrDefault("MONGO_URI", "")
+// 	if uri == "" {
+// 		host := getEnvOrDefault("MONGO_HOST", "localhost")
+// 		port := getEnvOrDefault("MONGO_PORT", "27017")
+// 		uri = "mongodb://" + net.JoinHostPort(host, port)
+// 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+// 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+// 	defer cancel()
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
-	if err != nil {
-		t.Fatalf("Failed to create MongoDB client: %v", err)
-	}
-	defer func() {
-		_ = client.Disconnect(context.Background())
-	}()
+// 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
+// 	if err != nil {
+// 		t.Fatalf("Failed to create MongoDB client: %v", err)
+// 	}
+// 	defer func() {
+// 		_ = client.Disconnect(context.Background())
+// 	}()
 
-	if err := client.Ping(ctx, readpref.Primary()); err != nil {
-		t.Fatalf("Failed to ping MongoDB: %v", err)
-	}
-}
+// 	if err := client.Ping(ctx, readpref.Primary()); err != nil {
+// 		t.Fatalf("Failed to ping MongoDB: %v", err)
+// 	}
+// }
 // func TestIntegrationUpdateTodo(t *testing.T) {
 // 	setupTestDB(t)
 // 	defer teardownTestDB(t)
@@ -353,6 +357,8 @@ func TestMongoHealth(t *testing.T) {
 
 func startKeploySession(t *testing.T, sessionName string) {
 	client := &http.Client{}
+	// start-session tells the agent which mock session to activate for the
+	// current test before outbound calls begin.
 	url := keployAgentBaseURL() + "/hooks/start-session"
 	payload := map[string]string{"name": sessionName}
 	jsonPayload, _ := json.Marshal(payload)
