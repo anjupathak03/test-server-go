@@ -31,7 +31,7 @@ func TestCreateTodo(t *testing.T) {
 
 	rows := sqlmock.NewRows([]string{"id", "title", "description", "completed", "created_at", "updated_at"}).
 		AddRow(1, "Test Todo", "Test Description", false, now, now)
-	
+
 	mock.ExpectQuery("SELECT (.+) FROM todos WHERE id = ?").
 		WithArgs(1).
 		WillReturnRows(rows)
