@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -56,27 +55,7 @@ func getEnvOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
-func keployAgentBaseURL() string {
-	// Preferred source in Keploy v3: full URI exported by the parent process.
-	// Example: KEPLOY_AGENT_URI=http://localhost:33003/agent
-	//
-	// This avoids assuming a fixed control-plane port. Keploy may choose a
-	// different free port on each run.
-	if uri := strings.TrimRight(os.Getenv("KEPLOY_AGENT_URI"), "/"); uri != "" {
-		return uri
-	}
-	// Backward-compatible fallback if only the port is exported.
-	// Example: KEPLOY_AGENT_PORT=33003
-	if port := os.Getenv("KEPLOY_AGENT_PORT"); port != "" {
-		return "http://localhost:" + port + "/agent"
-	}
-	// Final fallback for ad-hoc local runs where env vars are not injected.
-	// This keeps tests runnable outside Keploy, but is not reliable for v3.
-	return "http://localhost:6789/agent"
-}
-
 func TestIntegrationCreateTodo(t *testing.T) {
-	startKeploySession(t, "TestIntegrationCreateTodo")
 	setupTestDB(t)
 	defer teardownTestDB(t)
 
@@ -107,7 +86,6 @@ func TestIntegrationCreateTodo(t *testing.T) {
 }
 
 func TestIntegrationGetAllTodos(t *testing.T) {
-	startKeploySession(t, "TestIntegrationGetAllTodos")
 	setupTestDB(t)
 	defer teardownTestDB(t)
 
@@ -132,7 +110,6 @@ func TestIntegrationGetAllTodos(t *testing.T) {
 }
 
 func TestIntegrationGetTodoByID(t *testing.T) {
-	startKeploySession(t, "TestIntegrationGetTodoByID")
 	setupTestDB(t)
 	defer teardownTestDB(t)
 
@@ -160,8 +137,6 @@ func TestIntegrationGetTodoByID(t *testing.T) {
 }
 
 func TestExternalHTTPSCall(t *testing.T) {
-	startKeploySession(t, "TestExternalHTTPSCall")
-
 	url := getEnvOrDefault("EXTERNAL_API_URL", "https://postman-echo.com/get?foo=bar")
 	client := &http.Client{Timeout: 10 * time.Second}
 
@@ -187,8 +162,6 @@ func TestExternalHTTPSCall(t *testing.T) {
 }
 
 func TestMySQLHealth(t *testing.T) {
-	startKeploySession(t, "TestMySQLHealth")
-
 	dbConfig := database.Config{
 		Host:     getEnvOrDefault("DB_HOST", "localhost"),
 		Port:     getEnvOrDefault("DB_PORT", "3306"),
@@ -207,171 +180,5 @@ func TestMySQLHealth(t *testing.T) {
 
 	if err := database.DB.PingContext(ctx); err != nil {
 		t.Fatalf("Failed to ping MySQL: %v", err)
-	}
-}
-
-// func TestMongoHealth(t *testing.T) {
-// 	startKeploySession(t, "TestMongoHealth")
-
-// 	uri := getEnvOrDefault("MONGO_URI", "")
-// 	if uri == "" {
-// 		host := getEnvOrDefault("MONGO_HOST", "localhost")
-// 		port := getEnvOrDefault("MONGO_PORT", "27017")
-// 		uri = "mongodb://" + net.JoinHostPort(host, port)
-// 	}
-
-// 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-// 	defer cancel()
-
-// 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
-// 	if err != nil {
-// 		t.Fatalf("Failed to create MongoDB client: %v", err)
-// 	}
-// 	defer func() {
-// 		_ = client.Disconnect(context.Background())
-// 	}()
-
-// 	if err := client.Ping(ctx, readpref.Primary()); err != nil {
-// 		t.Fatalf("Failed to ping MongoDB: %v", err)
-// 	}
-// }
-// func TestIntegrationUpdateTodo(t *testing.T) {
-// 	setupTestDB(t)
-// 	defer teardownTestDB(t)
-
-// 	repo := repository.NewTodoRepository(database.DB)
-// 	router := routes.SetupRouter(repo)
-
-// 	// Create a todo
-// 	created, _ := repo.Create(&models.CreateTodoRequest{
-// 		Title:       "Original Title",
-// 		Description: "Original Description",
-// 	})
-
-// 	// Update the todo
-// 	newTitle := "Updated Title"
-// 	completed := true
-// 	updateReq := models.UpdateTodoRequest{
-// 		Title:     &newTitle,
-// 		Completed: &completed,
-// 	}
-// 	body, _ := json.Marshal(updateReq)
-
-// 	req := httptest.NewRequest("PUT", fmt.Sprintf("/api/todos/%d", created.ID), bytes.NewBuffer(body))
-// 	req.Header.Set("Content-Type", "application/json")
-// 	w := httptest.NewRecorder()
-
-// 	router.ServeHTTP(w, req)
-
-// 	assert.Equal(t, http.StatusOK, w.Code)
-
-// 	var todo models.Todo
-// 	json.NewDecoder(w.Body).Decode(&todo)
-
-// 	assert.Equal(t, newTitle, todo.Title)
-// 	assert.True(t, todo.Completed)
-// }
-
-// func TestIntegrationDeleteTodo(t *testing.T) {
-// 	setupTestDB(t)
-// 	defer teardownTestDB(t)
-
-// 	repo := repository.NewTodoRepository(database.DB)
-// 	router := routes.SetupRouter(repo)
-
-// 	// Create a todo
-// 	created, _ := repo.Create(&models.CreateTodoRequest{
-// 		Title:       "To Be Deleted",
-// 		Description: "This will be deleted",
-// 	})
-
-// 	// Delete the todo
-// 	req := httptest.NewRequest("DELETE", fmt.Sprintf("/api/todos/%d", created.ID), nil)
-// 	w := httptest.NewRecorder()
-
-// 	router.ServeHTTP(w, req)
-
-// 	assert.Equal(t, http.StatusOK, w.Code)
-
-// 	// Verify it's deleted
-// 	_, err := repo.GetByID(created.ID)
-// 	assert.Error(t, err)
-// }
-
-// func TestIntegrationFullWorkflow(t *testing.T) {
-// 	setupTestDB(t)
-// 	defer teardownTestDB(t)
-
-// 	repo := repository.NewTodoRepository(database.DB)
-// 	router := routes.SetupRouter(repo)
-
-// 	// 1. Create a todo
-// 	createReq := models.CreateTodoRequest{
-// 		Title:       "Workflow Todo",
-// 		Description: "Testing full workflow",
-// 	}
-// 	body, _ := json.Marshal(createReq)
-
-// 	req := httptest.NewRequest("POST", "/api/todos", bytes.NewBuffer(body))
-// 	req.Header.Set("Content-Type", "application/json")
-// 	w := httptest.NewRecorder()
-// 	router.ServeHTTP(w, req)
-
-// 	var created models.Todo
-// 	json.NewDecoder(w.Body).Decode(&created)
-
-// 	// 2. Get the todo
-// 	req = httptest.NewRequest("GET", fmt.Sprintf("/api/todos/%d", created.ID), nil)
-// 	w = httptest.NewRecorder()
-// 	router.ServeHTTP(w, req)
-// 	assert.Equal(t, http.StatusOK, w.Code)
-
-// 	// 3. Update the todo
-// 	completed := true
-// 	updateReq := models.UpdateTodoRequest{Completed: &completed}
-// 	body, _ = json.Marshal(updateReq)
-// 	req = httptest.NewRequest("PUT", fmt.Sprintf("/api/todos/%d", created.ID), bytes.NewBuffer(body))
-// 	req.Header.Set("Content-Type", "application/json")
-// 	w = httptest.NewRecorder()
-// 	router.ServeHTTP(w, req)
-
-// 	var updated models.Todo
-// 	json.NewDecoder(w.Body).Decode(&updated)
-// 	assert.True(t, updated.Completed)
-
-// 	// 4. Get all todos
-// 	req = httptest.NewRequest("GET", "/api/todos", nil)
-// 	w = httptest.NewRecorder()
-// 	router.ServeHTTP(w, req)
-// 	assert.Equal(t, http.StatusOK, w.Code)
-
-// 	// 5. Delete the todo
-// 	req = httptest.NewRequest("DELETE", fmt.Sprintf("/api/todos/%d", created.ID), nil)
-// 	w = httptest.NewRecorder()
-// 	router.ServeHTTP(w, req)
-// 	assert.Equal(t, http.StatusOK, w.Code)
-
-// 	// Wait a bit for the delete to propagate
-// 	time.Sleep(100 * time.Millisecond)
-// }
-
-func startKeploySession(t *testing.T, sessionName string) {
-	client := &http.Client{}
-	// start-session tells the agent which mock session to activate for the
-	// current test before outbound calls begin.
-	url := keployAgentBaseURL() + "/hooks/start-session"
-	payload := map[string]string{"name": sessionName}
-	jsonPayload, _ := json.Marshal(payload)
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
-	if err != nil {
-		// Just log, don't fail if agent is not running (e.g. running tests without keploy)
-		t.Logf("Failed to call agent start-session: %v", err)
-		return
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Logf("Agent returned non-200: %d", resp.StatusCode)
 	}
 }
