@@ -17,7 +17,7 @@ func main() {
 		Port:     getEnv("DB_PORT", "3306"),
 		User:     getEnv("DB_USER", "root"),
 		Password: getEnv("DB_PASSWORD", "password"),
-		DBName:   getEnv("DB_NAME", "todo_db"),
+		DBName:   getEnv("DB_NAME", "todo_test_db"),
 	}
 
 	// Initialize database
