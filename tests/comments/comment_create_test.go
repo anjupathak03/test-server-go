@@ -1,25 +1,26 @@
 package comments
 
 import (
-"testing"
+	"testing"
 
-"test-server/testutil"
+	"test-server/testutil"
 
-"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func seedTodo(t *testing.T) int64 {
 	t.Helper()
 	res, err := testutil.DB.Exec(
-"INSERT INTO todos (title, description) VALUES (?, ?)",
-"Seed Todo", "Created for comment tests",
-)
+		"INSERT INTO todos (title, description) VALUES (?, ?)",
+		"Seed Todo", "Created for comment tests",
+	)
 	assert.NoError(t, err)
 	id, _ := res.LastInsertId()
 	return id
 }
 
 func TestIntegrationCreateComment(t *testing.T) {
+	testutil.StartKeploySession("tests/comments", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "comments")
@@ -28,9 +29,9 @@ func TestIntegrationCreateComment(t *testing.T) {
 	todoID := seedTodo(t)
 
 	result, err := testutil.DB.Exec(
-"INSERT INTO comments (todo_id, body, author) VALUES (?, ?, ?)",
-todoID, "Looks good!", "reviewer1",
-)
+		"INSERT INTO comments (todo_id, body, author) VALUES (?, ?, ?)",
+		todoID, "Looks good!", "reviewer1",
+	)
 	assert.NoError(t, err)
 
 	id, _ := result.LastInsertId()
@@ -45,6 +46,7 @@ todoID, "Looks good!", "reviewer1",
 }
 
 func TestIntegrationCreateMultipleComments(t *testing.T) {
+	testutil.StartKeploySession("tests/comments", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "comments")
@@ -55,9 +57,9 @@ func TestIntegrationCreateMultipleComments(t *testing.T) {
 	bodies := []string{"First", "Second", "Third"}
 	for _, b := range bodies {
 		_, err := testutil.DB.Exec(
-"INSERT INTO comments (todo_id, body, author) VALUES (?, ?, ?)",
-todoID, b, "author",
-)
+			"INSERT INTO comments (todo_id, body, author) VALUES (?, ?, ?)",
+			todoID, b, "author",
+		)
 		assert.NoError(t, err)
 	}
 
@@ -69,14 +71,15 @@ todoID, b, "author",
 }
 
 func TestIntegrationCreateCommentInvalidTodo(t *testing.T) {
+	testutil.StartKeploySession("tests/comments", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "comments")
 	testutil.CleanTable(t, "todos")
 
 	_, err := testutil.DB.Exec(
-"INSERT INTO comments (todo_id, body, author) VALUES (?, ?, ?)",
-99999, "orphan comment", "nobody",
-)
+		"INSERT INTO comments (todo_id, body, author) VALUES (?, ?, ?)",
+		99999, "orphan comment", "nobody",
+	)
 	assert.Error(t, err)
 }

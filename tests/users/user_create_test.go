@@ -9,6 +9,7 @@ import (
 )
 
 func TestIntegrationCreateUser(t *testing.T) {
+	testutil.StartKeploySession("tests/users", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "users")
@@ -32,6 +33,7 @@ func TestIntegrationCreateUser(t *testing.T) {
 }
 
 func TestIntegrationCreateUserDuplicate(t *testing.T) {
+	testutil.StartKeploySession("tests/users", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "users")

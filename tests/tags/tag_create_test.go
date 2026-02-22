@@ -1,22 +1,23 @@
 package tags
 
 import (
-"testing"
+	"testing"
 
-"test-server/testutil"
+	"test-server/testutil"
 
-"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIntegrationCreateTag(t *testing.T) {
+	testutil.StartKeploySession("tests/tags", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "tags")
 
 	result, err := testutil.DB.Exec(
-"INSERT INTO tags (name, color) VALUES (?, ?)",
-"urgent", "#FF0000",
-)
+		"INSERT INTO tags (name, color) VALUES (?, ?)",
+		"urgent", "#FF0000",
+	)
 	assert.NoError(t, err)
 
 	id, _ := result.LastInsertId()
@@ -31,6 +32,7 @@ func TestIntegrationCreateTag(t *testing.T) {
 }
 
 func TestIntegrationCreateTagDefaultColor(t *testing.T) {
+	testutil.StartKeploySession("tests/tags", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "tags")
@@ -44,6 +46,7 @@ func TestIntegrationCreateTagDefaultColor(t *testing.T) {
 }
 
 func TestIntegrationCreateDuplicateTag(t *testing.T) {
+	testutil.StartKeploySession("tests/tags", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "tags")

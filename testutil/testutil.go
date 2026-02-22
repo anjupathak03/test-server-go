@@ -1,10 +1,16 @@
 package testutil
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -96,4 +102,29 @@ func mustExec(t *testing.T, db *sql.DB, query string) {
 	if _, err := db.Exec(query); err != nil {
 		t.Fatalf("exec failed: %v\nquery: %s", err, query)
 	}
+}
+
+// StartKeploySession notifies the Keploy agent to begin a new sandbox session.
+// The call is skipped silently when KEPLOY_AGENT_URI (or KEPLOY_MCP_URI) is unset.
+func StartKeploySession(location, name string) {
+	if location == "" || name == "" {
+		return
+	}
+	agentURI := os.Getenv("KEPLOY_AGENT_URI")
+	if agentURI == "" {
+		agentURI = os.Getenv("KEPLOY_MCP_URI")
+	}
+	if agentURI == "" {
+		log.Println("Keploy session skipped: KEPLOY_AGENT_URI not set")
+		return
+	}
+	endpoint := strings.TrimRight(agentURI, "/") + "/sandbox/scope"
+	payload, _ := json.Marshal(map[string]string{"location": location, "name": name})
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Post(endpoint, "application/json", bytes.NewReader(payload))
+	if err != nil {
+		log.Printf("Keploy session start failed (non-fatal): %v", err)
+		return
+	}
+	resp.Body.Close()
 }

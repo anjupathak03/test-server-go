@@ -1,0 +1,43 @@
+# Pipeline 1: Pull Request Validation
+# Validates code changes by replaying existing Keploy sandboxes.
+# Fails immediately if replay fails.
+
+name: Keploy PR Validation
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  keploy-replay-validation:
+    runs-on: ubuntu-latest
+    # No external DB service needed – replay uses sandboxes/mocks.
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Runtime setup (Go toolchain)
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      # Minimal deps: only Go modules needed to build and run the test binary.
+      # External services (MySQL) are NOT required here; Keploy replays mocks.
+      - name: Install Go dependencies
+        run: go mod download
+
+      # Install Keploy CLI (build from source)
+      - name: Install Keploy
+        run: |
+          git clone --branch mcp-support https://github.com/keploy/keploy.git /tmp/keploy-src
+          cd /tmp/keploy-src
+          go build -ldflags="-X main.apiServerURI=https://api.keploy.io" -o keploy
+          sudo mv keploy /usr/local/bin/keploy
+
+      # Replay validation – fails the pipeline if any mock mismatches
+      - name: Replay sandbox mocks
+        run: keploy sandbox replay -c "go test -p 1 -parallel 1 -v -run TestIntegration ./..."
+        env:
+          KEPLOY_API_KEY: ${{ secrets.KEPLOY_API_KEY }}

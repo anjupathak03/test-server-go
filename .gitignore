@@ -53,3 +53,7 @@ desktop.ini
 # Build artifacts
 *.tar.gz
 *.zip
+
+**/*.sb.yaml
+
+**/*.sb.yml

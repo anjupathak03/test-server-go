@@ -1,0 +1,136 @@
+# Pipeline 2: Default Branch Push – Conditional Recording
+# On every push to main:
+#   Phase A) Try to replay existing sandboxes.
+#            If OK  → exit successfully (no recording needed).
+#            If FAIL → proceed to Phase B.
+#   Phase B) Start real MySQL, record new sandboxes, verify, and push updated keploy.yml.
+#
+# Bot-loop guard: job is skipped when the commit was authored by the CI bot.
+
+name: Keploy Main – Conditional Record
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  keploy-conditional-record:
+    # Skip infinite-loop commits pushed by this workflow's bot user.
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && github.actor != 'github-actions[bot]'"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Full history so we can push back to the branch.
+          fetch-depth: 0
+
+      # Runtime setup
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      # Install Keploy CLI (build from source)
+      - name: Install Keploy
+        run: |
+          git clone --branch mcp-support https://github.com/keploy/keploy.git /tmp/keploy-src
+          cd /tmp/keploy-src
+          go build -ldflags="-X main.apiServerURI=https://api.keploy.io" -o keploy
+          sudo mv keploy /usr/local/bin/keploy
+
+      # ─────────────────────────────────────────────────
+      # Phase A: Try replay with minimal deps (no MySQL).
+      # ─────────────────────────────────────────────────
+      - name: "[Phase A] Install minimal Go dependencies"
+        run: go mod download
+
+      - name: "[Phase A] Replay sandbox mocks"
+        id: phase_a_replay
+        # continue-on-error so Phase B can run when replay fails.
+        continue-on-error: true
+        run: keploy sandbox replay -c "go test -p 1 -parallel 1 -v -run TestIntegration ./..."
+        env:
+          KEPLOY_API_KEY: ${{ secrets.KEPLOY_API_KEY }}
+
+      - name: "[Phase A] Exit successfully if replay passed"
+        if: steps.phase_a_replay.outcome == 'success'
+        run: echo "Replay passed – no new recording needed." && exit 0
+
+      # ─────────────────────────────────────────────────
+      # Phase B: Record new sandboxes (runs only if Phase A failed).
+      # Full deps include MySQL for real outgoing calls.
+      # ─────────────────────────────────────────────────
+
+      # Full dependency: MySQL service container
+      - name: "[Phase B] Start MySQL service"
+        if: steps.phase_a_replay.outcome != 'success'
+        uses: shogo82148/actions-setup-mysql@v1
+        with:
+          mysql-version: "8.0"
+          mysql-root-password: password
+          mysql-database: todo_test_db
+
+      - name: "[Phase B] Wait for MySQL and run schema init"
+        if: steps.phase_a_replay.outcome != 'success'
+        run: |
+          set -euo pipefail
+          mysql -h 127.0.0.1 -u root -ppassword todo_test_db < init.sql || true
+        env:
+          MYSQL_PWD: password
+
+      - name: "[Phase B] Compute next sandbox tag"
+        if: steps.phase_a_replay.outcome != 'success'
+        id: compute_tag
+        run: |
+          set -euo pipefail
+          CONFIG_FILE=$([ -f keploy.yml ] && echo keploy.yml || echo keploy.yaml)
+          CURRENT_REF=$(grep -A1 'sandbox:' "$CONFIG_FILE" | grep 'ref:' | sed 's/.*ref: //' | tr -d '[:space:]')
+          echo "Current ref: $CURRENT_REF"
+          PREFIX="${CURRENT_REF%:*}"       # e.g. anjupathak03/test-server
+          VERSION="${CURRENT_REF##*:}"     # e.g. v1.0.19
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: sandbox.ref version '$VERSION' is not valid SemVer (expected vX.Y.Z)."
+            exit 1
+          fi
+          PATCH="${VERSION##*.}"
+          BASE="${VERSION%.*}"
+          NEW_VERSION="${BASE}.$((PATCH + 1))"
+          NEW_TAG="${PREFIX}:${NEW_VERSION}"
+          echo "new_tag=${NEW_TAG}" >> "$GITHUB_OUTPUT"
+          echo "New tag: $NEW_TAG"
+
+      - name: "[Phase B] Record new sandbox mocks"
+        if: steps.phase_a_replay.outcome != 'success'
+        run: |
+          keploy sandbox record \
+            -c "go test -p 1 -parallel 1 -v -run TestIntegration ./..." \
+            --tag "${{ steps.compute_tag.outputs.new_tag }}"
+        env:
+          KEPLOY_API_KEY: ${{ secrets.KEPLOY_API_KEY }}
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USER: root
+          DB_PASSWORD: password
+          DB_NAME: todo_test_db
+
+      - name: "[Phase B] Verify replay after recording"
+        if: steps.phase_a_replay.outcome != 'success'
+        # No continue-on-error – if verification fails we must NOT commit.
+        run: keploy sandbox replay -c "go test -p 1 -parallel 1 -v -run TestIntegration ./..."
+        env:
+          KEPLOY_API_KEY: ${{ secrets.KEPLOY_API_KEY }}
+
+      - name: "[Phase B] Commit and push updated keploy config"
+        if: steps.phase_a_replay.outcome != 'success'
+        run: |
+          set -euo pipefail
+          CONFIG_FILE=$([ -f keploy.yml ] && echo keploy.yml || echo keploy.yaml)
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$CONFIG_FILE"
+          git commit -m "chore: bump sandbox version to ${{ steps.compute_tag.outputs.new_tag }} [skip ci]"
+          git push origin main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

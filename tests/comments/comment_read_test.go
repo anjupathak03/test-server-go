@@ -1,14 +1,15 @@
 package comments
 
 import (
-"testing"
+	"testing"
 
-"test-server/testutil"
+	"test-server/testutil"
 
-"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIntegrationReadCommentByID(t *testing.T) {
+	testutil.StartKeploySession("tests/comments", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "comments")
@@ -17,16 +18,16 @@ func TestIntegrationReadCommentByID(t *testing.T) {
 	todoID := seedTodo(t)
 
 	res, _ := testutil.DB.Exec(
-"INSERT INTO comments (todo_id, body, author) VALUES (?, ?, ?)",
-todoID, "Needs review", "alice",
-)
+		"INSERT INTO comments (todo_id, body, author) VALUES (?, ?, ?)",
+		todoID, "Needs review", "alice",
+	)
 	id, _ := res.LastInsertId()
 
 	var body, author string
 	var tid int
 	err := testutil.DB.QueryRow(
-"SELECT todo_id, body, author FROM comments WHERE id = ?", id,
-).Scan(&tid, &body, &author)
+		"SELECT todo_id, body, author FROM comments WHERE id = ?", id,
+	).Scan(&tid, &body, &author)
 	assert.NoError(t, err)
 	assert.Equal(t, int(todoID), tid)
 	assert.Equal(t, "Needs review", body)
@@ -34,6 +35,7 @@ todoID, "Needs review", "alice",
 }
 
 func TestIntegrationReadCommentsByTodo(t *testing.T) {
+	testutil.StartKeploySession("tests/comments", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "comments")
@@ -45,8 +47,8 @@ func TestIntegrationReadCommentsByTodo(t *testing.T) {
 	testutil.DB.Exec("INSERT INTO comments (todo_id, body, author) VALUES (?, ?, ?)", todoID, "c2", "a2")
 
 	rows, err := testutil.DB.Query(
-"SELECT id, body, author FROM comments WHERE todo_id = ? ORDER BY id", todoID,
-)
+		"SELECT id, body, author FROM comments WHERE todo_id = ? ORDER BY id", todoID,
+	)
 	assert.NoError(t, err)
 	defer rows.Close()
 
@@ -61,6 +63,7 @@ func TestIntegrationReadCommentsByTodo(t *testing.T) {
 }
 
 func TestIntegrationReadNonExistentComment(t *testing.T) {
+	testutil.StartKeploySession("tests/comments", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "comments")

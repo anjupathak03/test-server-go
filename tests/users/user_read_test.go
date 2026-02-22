@@ -9,6 +9,7 @@ import (
 )
 
 func TestIntegrationReadUserByID(t *testing.T) {
+	testutil.StartKeploySession("tests/users", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "users")
@@ -32,6 +33,7 @@ func TestIntegrationReadUserByID(t *testing.T) {
 }
 
 func TestIntegrationReadAllUsers(t *testing.T) {
+	testutil.StartKeploySession("tests/users", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "users")
@@ -54,6 +56,7 @@ func TestIntegrationReadAllUsers(t *testing.T) {
 }
 
 func TestIntegrationReadNonExistentUser(t *testing.T) {
+	testutil.StartKeploySession("tests/users", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "users")

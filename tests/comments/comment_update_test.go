@@ -1,14 +1,15 @@
 package comments
 
 import (
-"testing"
+	"testing"
 
-"test-server/testutil"
+	"test-server/testutil"
 
-"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIntegrationUpdateCommentBody(t *testing.T) {
+	testutil.StartKeploySession("tests/comments", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "comments")
@@ -17,9 +18,9 @@ func TestIntegrationUpdateCommentBody(t *testing.T) {
 	todoID := seedTodo(t)
 
 	res, _ := testutil.DB.Exec(
-"INSERT INTO comments (todo_id, body, author) VALUES (?, ?, ?)",
-todoID, "original text", "editor",
-)
+		"INSERT INTO comments (todo_id, body, author) VALUES (?, ?, ?)",
+		todoID, "original text", "editor",
+	)
 	id, _ := res.LastInsertId()
 
 	_, err := testutil.DB.Exec("UPDATE comments SET body = ? WHERE id = ?", "updated text", id)
@@ -31,6 +32,7 @@ todoID, "original text", "editor",
 }
 
 func TestIntegrationUpdateCommentAuthor(t *testing.T) {
+	testutil.StartKeploySession("tests/comments", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "comments")
@@ -39,9 +41,9 @@ func TestIntegrationUpdateCommentAuthor(t *testing.T) {
 	todoID := seedTodo(t)
 
 	res, _ := testutil.DB.Exec(
-"INSERT INTO comments (todo_id, body, author) VALUES (?, ?, ?)",
-todoID, "some note", "old_author",
-)
+		"INSERT INTO comments (todo_id, body, author) VALUES (?, ?, ?)",
+		todoID, "some note", "old_author",
+	)
 	id, _ := res.LastInsertId()
 
 	_, err := testutil.DB.Exec("UPDATE comments SET author = ? WHERE id = ?", "new_author", id)
@@ -53,6 +55,7 @@ todoID, "some note", "old_author",
 }
 
 func TestIntegrationDeleteComment(t *testing.T) {
+	testutil.StartKeploySession("tests/comments", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "comments")
@@ -61,9 +64,9 @@ func TestIntegrationDeleteComment(t *testing.T) {
 	todoID := seedTodo(t)
 
 	res, _ := testutil.DB.Exec(
-"INSERT INTO comments (todo_id, body, author) VALUES (?, ?, ?)",
-todoID, "to be deleted", "cleaner",
-)
+		"INSERT INTO comments (todo_id, body, author) VALUES (?, ?, ?)",
+		todoID, "to be deleted", "cleaner",
+	)
 	id, _ := res.LastInsertId()
 
 	result, err := testutil.DB.Exec("DELETE FROM comments WHERE id = ?", id)

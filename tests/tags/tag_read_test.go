@@ -1,22 +1,23 @@
 package tags
 
 import (
-"testing"
+	"testing"
 
-"test-server/testutil"
+	"test-server/testutil"
 
-"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIntegrationReadTagByID(t *testing.T) {
+	testutil.StartKeploySession("tests/tags", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "tags")
 
 	res, _ := testutil.DB.Exec(
-"INSERT INTO tags (name, color) VALUES (?, ?)",
-"feature", "#0000FF",
-)
+		"INSERT INTO tags (name, color) VALUES (?, ?)",
+		"feature", "#0000FF",
+	)
 	id, _ := res.LastInsertId()
 
 	var name, color string
@@ -28,6 +29,7 @@ func TestIntegrationReadTagByID(t *testing.T) {
 }
 
 func TestIntegrationReadAllTags(t *testing.T) {
+	testutil.StartKeploySession("tests/tags", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "tags")
@@ -51,6 +53,7 @@ func TestIntegrationReadAllTags(t *testing.T) {
 }
 
 func TestIntegrationReadTagByName(t *testing.T) {
+	testutil.StartKeploySession("tests/tags", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "tags")

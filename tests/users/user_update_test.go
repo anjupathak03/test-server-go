@@ -1,22 +1,23 @@
 package users
 
 import (
-"testing"
+	"testing"
 
-"test-server/testutil"
+	"test-server/testutil"
 
-"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIntegrationUpdateUserEmail(t *testing.T) {
+	testutil.StartKeploySession("tests/users", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "users")
 
 	res, _ := testutil.DB.Exec(
-"INSERT INTO users (username, email) VALUES (?, ?)",
-"dave", "dave@old.com",
-)
+		"INSERT INTO users (username, email) VALUES (?, ?)",
+		"dave", "dave@old.com",
+	)
 	id, _ := res.LastInsertId()
 
 	_, err := testutil.DB.Exec("UPDATE users SET email = ? WHERE id = ?", "dave@new.com", id)
@@ -28,14 +29,15 @@ func TestIntegrationUpdateUserEmail(t *testing.T) {
 }
 
 func TestIntegrationDeactivateUser(t *testing.T) {
+	testutil.StartKeploySession("tests/users", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "users")
 
 	res, _ := testutil.DB.Exec(
-"INSERT INTO users (username, email) VALUES (?, ?)",
-"eve", "eve@example.com",
-)
+		"INSERT INTO users (username, email) VALUES (?, ?)",
+		"eve", "eve@example.com",
+	)
 	id, _ := res.LastInsertId()
 
 	_, err := testutil.DB.Exec("UPDATE users SET active = ? WHERE id = ?", false, id)
@@ -47,14 +49,15 @@ func TestIntegrationDeactivateUser(t *testing.T) {
 }
 
 func TestIntegrationDeleteUser(t *testing.T) {
+	testutil.StartKeploySession("tests/users", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "users")
 
 	res, _ := testutil.DB.Exec(
-"INSERT INTO users (username, email) VALUES (?, ?)",
-"frank", "frank@example.com",
-)
+		"INSERT INTO users (username, email) VALUES (?, ?)",
+		"frank", "frank@example.com",
+	)
 	id, _ := res.LastInsertId()
 
 	result, err := testutil.DB.Exec("DELETE FROM users WHERE id = ?", id)

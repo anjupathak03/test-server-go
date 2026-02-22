@@ -1,22 +1,23 @@
 package tags
 
 import (
-"testing"
+	"testing"
 
-"test-server/testutil"
+	"test-server/testutil"
 
-"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIntegrationUpdateTagColor(t *testing.T) {
+	testutil.StartKeploySession("tests/tags", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "tags")
 
 	res, _ := testutil.DB.Exec(
-"INSERT INTO tags (name, color) VALUES (?, ?)",
-"wip", "#FFFFFF",
-)
+		"INSERT INTO tags (name, color) VALUES (?, ?)",
+		"wip", "#FFFFFF",
+	)
 	id, _ := res.LastInsertId()
 
 	_, err := testutil.DB.Exec("UPDATE tags SET color = ? WHERE id = ?", "#00FF00", id)
@@ -28,14 +29,15 @@ func TestIntegrationUpdateTagColor(t *testing.T) {
 }
 
 func TestIntegrationUpdateTagName(t *testing.T) {
+	testutil.StartKeploySession("tests/tags", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "tags")
 
 	res, _ := testutil.DB.Exec(
-"INSERT INTO tags (name, color) VALUES (?, ?)",
-"old-name", "#AAAAAA",
-)
+		"INSERT INTO tags (name, color) VALUES (?, ?)",
+		"old-name", "#AAAAAA",
+	)
 	id, _ := res.LastInsertId()
 
 	_, err := testutil.DB.Exec("UPDATE tags SET name = ? WHERE id = ?", "new-name", id)
@@ -47,14 +49,15 @@ func TestIntegrationUpdateTagName(t *testing.T) {
 }
 
 func TestIntegrationDeleteTag(t *testing.T) {
+	testutil.StartKeploySession("tests/tags", t.Name())
 	testutil.SetupDB(t)
 	defer testutil.TeardownDB()
 	testutil.CleanTable(t, "tags")
 
 	res, _ := testutil.DB.Exec(
-"INSERT INTO tags (name, color) VALUES (?, ?)",
-"temp-tag", "#999999",
-)
+		"INSERT INTO tags (name, color) VALUES (?, ?)",
+		"temp-tag", "#999999",
+	)
 	id, _ := res.LastInsertId()
 
 	result, err := testutil.DB.Exec("DELETE FROM tags WHERE id = ?", id)
