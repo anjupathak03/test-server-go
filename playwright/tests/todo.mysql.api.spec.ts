@@ -104,12 +104,12 @@ test.describe("API + direct MySQL outgoing calls", () => {
     await connection.end();
   });
 
-  test("runs a direct MySQL health query", async () => {
+  test("MySQLhealthquery", async () => {
     const [rows] = await connection.query<RowDataPacket[]>("SELECT 1 AS ok");
     expect(rows[0].ok).toBe(1);
   });
 
-  test("API create is visible from direct MySQL query", async ({ request }) => {
+  test("MySQLquery", async ({ request }) => {
     const createRes = await request.post("/api/todos", {
       data: {
         title: API_CREATED_TITLE,
@@ -150,7 +150,7 @@ test.describe("API + direct MySQL outgoing calls", () => {
     );
   });
 
-  test("MySQL insert executes with stable outgoing calls", async ({ request }) => {
+  test("MySQlinsert", async ({ request }) => {
     const orderedCandidates = resolvedDatabase
       ? [
           resolvedDatabase,

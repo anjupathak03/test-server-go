@@ -29,7 +29,7 @@ test.describe("POST /api/todos", () => {
     if (createdId) await deleteTodo(request, createdId);
   });
 
-  test("creates a todo with title and description", async ({ request }) => {
+  test("createwithdesc", async ({ request }) => {
     const res = await request.post("/api/todos", {
       data: { title: "Buy groceries", description: "Milk, eggs, bread" },
     });
@@ -43,7 +43,7 @@ test.describe("POST /api/todos", () => {
     createdId = body.id;
   });
 
-  test("creates a todo with title only", async ({ request }) => {
+  test("titleonly", async ({ request }) => {
     const res = await request.post("/api/todos", {
       data: { title: "Minimal todo" },
     });
@@ -55,7 +55,7 @@ test.describe("POST /api/todos", () => {
     createdId = body.id;
   });
 
-  test("returns 400 when title is missing", async ({ request }) => {
+  test("missingtitle", async ({ request }) => {
     const res = await request.post("/api/todos", {
       data: { description: "No title provided" },
     });
@@ -65,7 +65,7 @@ test.describe("POST /api/todos", () => {
     expect(body).toHaveProperty("error");
   });
 
-  test("returns 400 for an empty body", async ({ request }) => {
+  test("emptybody", async ({ request }) => {
     const res = await request.post("/api/todos", { data: {} });
     expect(res.status()).toBe(400);
   });
@@ -89,7 +89,7 @@ test.describe("GET /api/todos", () => {
     for (const id of ids) await deleteTodo(request, id);
   });
 
-  test("returns an array of todos", async ({ request }) => {
+  test("listtodos", async ({ request }) => {
     const res = await request.get("/api/todos");
     expect(res.status()).toBe(200);
 
@@ -98,7 +98,7 @@ test.describe("GET /api/todos", () => {
     expect(body.length).toBeGreaterThanOrEqual(3);
   });
 
-  test("each todo has the expected shape", async ({ request }) => {
+  test("todoshape", async ({ request }) => {
     const res = await request.get("/api/todos");
     const todos: Todo[] = await res.json();
 
@@ -112,7 +112,7 @@ test.describe("GET /api/todos", () => {
     }
   });
 
-  test("the seeded todos are present in the list", async ({ request }) => {
+  test("seededtodos", async ({ request }) => {
     const res = await request.get("/api/todos");
     const todos: Todo[] = await res.json();
     const titles = todos.map((t) => t.title);
@@ -141,7 +141,7 @@ test.describe("GET /api/todos/:id", () => {
     await deleteTodo(request, todoId);
   });
 
-  test("returns the correct todo by ID", async ({ request }) => {
+  test("getbyid", async ({ request }) => {
     const res = await request.get(`/api/todos/${todoId}`);
     expect(res.status()).toBe(200);
 
@@ -151,14 +151,14 @@ test.describe("GET /api/todos/:id", () => {
     expect(body.description).toBe("Specific todo");
   });
 
-  test("returns 404 for a non-existent todo", async ({ request }) => {
+  test("notfound", async ({ request }) => {
     const res = await request.get("/api/todos/99999999");
     expect(res.status()).toBe(404);
     const body = await res.json();
     expect(body).toHaveProperty("error");
   });
 
-  test("returns 400 for an invalid (non-numeric) ID", async ({ request }) => {
+  test("invalidid", async ({ request }) => {
     const res = await request.get("/api/todos/not-a-number");
     expect(res.status()).toBe(400);
   });
@@ -182,7 +182,7 @@ test.describe("PUT /api/todos/:id", () => {
     await deleteTodo(request, todoId);
   });
 
-  test("updates the title", async ({ request }) => {
+  test("updatetitle", async ({ request }) => {
     const res = await request.put(`/api/todos/${todoId}`, {
       data: { title: "Updated title" },
     });
@@ -193,7 +193,7 @@ test.describe("PUT /api/todos/:id", () => {
     expect(body.description).toBe("Original description"); // unchanged
   });
 
-  test("marks a todo as completed", async ({ request }) => {
+  test("markcompleted", async ({ request }) => {
     const res = await request.put(`/api/todos/${todoId}`, {
       data: { completed: true },
     });
@@ -203,7 +203,7 @@ test.describe("PUT /api/todos/:id", () => {
     expect(body.completed).toBe(true);
   });
 
-  test("updates all fields at once", async ({ request }) => {
+  test("updateall", async ({ request }) => {
     const res = await request.put(`/api/todos/${todoId}`, {
       data: {
         title: "New title",
@@ -219,14 +219,14 @@ test.describe("PUT /api/todos/:id", () => {
     expect(body.completed).toBe(true);
   });
 
-  test("returns 404 when updating a non-existent todo", async ({ request }) => {
+  test("updatenotfound", async ({ request }) => {
     const res = await request.put("/api/todos/99999999", {
       data: { title: "Ghost" },
     });
     expect(res.status()).toBe(404);
   });
 
-  test("returns 400 for an invalid ID", async ({ request }) => {
+  test("invalidid", async ({ request }) => {
     const res = await request.put("/api/todos/abc", {
       data: { title: "Bad ID" },
     });
@@ -238,7 +238,7 @@ test.describe("PUT /api/todos/:id", () => {
 // DELETE /api/todos/:id – Delete
 // ---------------------------------------------------------------------------
 test.describe("DELETE /api/todos/:id", () => {
-  test("deletes an existing todo", async ({ request }) => {
+  test("deletestodo", async ({ request }) => {
     const createRes = await request.post("/api/todos", {
       data: { title: "To be deleted" },
     });
@@ -252,12 +252,12 @@ test.describe("DELETE /api/todos/:id", () => {
     expect(getRes.status()).toBe(404);
   });
 
-  test("returns 404 when deleting a non-existent todo", async ({ request }) => {
+  test("deletenotfound", async ({ request }) => {
     const res = await request.delete("/api/todos/99999999");
     expect(res.status()).toBe(404);
   });
 
-  test("returns 400 for an invalid ID", async ({ request }) => {
+  test("invalidid", async ({ request }) => {
     const res = await request.delete("/api/todos/not-an-id");
     expect(res.status()).toBe(400);
   });
@@ -267,7 +267,7 @@ test.describe("DELETE /api/todos/:id", () => {
 // End-to-end CRUD lifecycle
 // ---------------------------------------------------------------------------
 test.describe("Full CRUD lifecycle", () => {
-  test("create → read → update → delete a single todo", async ({ request }) => {
+  test("singletodo", async ({ request }) => {
     // Create
     const createRes = await request.post("/api/todos", {
       data: { title: "Lifecycle test", description: "E2E test" },
