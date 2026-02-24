@@ -47,7 +47,7 @@ report:
     summary: false
     testCaseIDs: []
 sandbox:
-    ref: anjupathak03/playwright:v1.10.2
+    ref: anjupathak03/playwright:v1.11.9
 serverPort: 0
 templatize:
     testSets: []
