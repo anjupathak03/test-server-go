@@ -1,0 +1,6 @@
+
+**/*.sb.yaml
+
+**/*.sb.yml
+
+node_modules

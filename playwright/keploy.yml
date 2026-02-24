@@ -1,0 +1,85 @@
+appId: 0
+appName: playwright
+buildDelay: 30
+bypassRules: []
+cmdType: native
+command: npm run test
+configPath: ""
+containerName: ""
+contract:
+    download: false
+    driven: consumer
+    generate: false
+    mappings:
+        self: s1
+        servicesMapping: {}
+    path: ""
+    services: []
+    tests: []
+debug: false
+disableANSI: false
+disableMapping: false
+disableTele: false
+dnsPort: 26789
+e2e: false
+generateGithubActions: false
+inCi: false
+incomingProxyPort: 36789
+keployContainer: keploy-v3
+keployNetwork: keploy-network
+mockDownload:
+    registryIds: []
+networkName: ""
+path: ""
+port: 0
+proxyPort: 16789
+record:
+    basePath: ""
+    filters: []
+    globalPassthrough: false
+    metadata: ""
+    recordTimer: 0s
+    sync: false
+report:
+    reportPath: ""
+    selectedTestSets: {}
+    showFullBody: false
+    summary: false
+    testCaseIDs: []
+sandbox:
+    ref: anjupathak03/playwright:v1.10.2
+serverPort: 0
+templatize:
+    testSets: []
+test:
+    apiTimeout: 5
+    basePath: ""
+    compareAll: false
+    coverageReportPath: ""
+    delay: 5
+    disableLineCoverage: false
+    disableMockUpload: true
+    fallBackOnMiss: false
+    globalNoise:
+        global: {}
+        test-sets: {}
+    grpcPort: 0
+    host: ""
+    ignoreOrdering: true
+    ignoredTests: {}
+    jacocoAgentPath: ""
+    language: ""
+    maxFailAttempts: 5
+    maxFlakyChecks: 1
+    mocking: true
+    mongoPassword: default@123
+    mustPass: false
+    port: 0
+    protoDir: ""
+    protoFile: ""
+    protoInclude: []
+    removeUnusedMocks: false
+    selectedTests: {}
+    skipCoverage: false
+    updateTemplate: false
+    useLocalMock: false
